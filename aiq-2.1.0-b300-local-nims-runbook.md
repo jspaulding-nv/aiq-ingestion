@@ -144,7 +144,6 @@ services:
     shm_size: "16gb"
     environment:
       NGC_API_KEY: ${NGC_API_KEY}
-      NIM_MODEL_PROFILE: vllm-nvfp4-tp1-pp1
       NIM_LOG_LEVEL: INFO
       PYTORCH_ALLOC_CONF: expandable_segments:True
     volumes:

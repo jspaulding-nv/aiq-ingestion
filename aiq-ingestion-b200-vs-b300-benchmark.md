@@ -74,7 +74,6 @@ services:
       - --max-model-len
       - "32768"
     environment:
-      NIM_MODEL_PROFILE: vllm-nvfp4-tp1-pp1
       PYTORCH_ALLOC_CONF: expandable_segments:True
 
   aiq-vlm-nim:
