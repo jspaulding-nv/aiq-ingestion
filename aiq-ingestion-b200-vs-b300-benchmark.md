@@ -6,7 +6,10 @@ This benchmark compares AI-Q 2.1.0 document ingestion using the LlamaIndex knowl
 - `AIQ_EXTRACT_CHARTS=true`
 - local VLM NIM: `nvidia/nemotron-nano-12b-v2-vl`
 - local embedding NIM: `nvidia/llama-nemotron-embed-vl-1b-v2`
-- optional local LLM NIM if document summaries remain enabled
+- hosted LLMs from the default AI-Q config
+- `generate_summary: false`
+
+The goal is to isolate GPU work that matters for ingestion: image/chart extraction through the VLM, embedding generation, and vector-store writes. The LLM is not hosted locally for this benchmark because it competes for VRAM and can obscure the B200 vs B300 ingestion comparison.
 
 The Knowledge API upload path is asynchronous:
 
@@ -16,31 +19,9 @@ The Knowledge API upload path is asynchronous:
 NVIDIA documents these endpoints in the AI-Q 2.1.0 REST API docs:
 https://docs.nvidia.com/aiq-blueprint/2.1.0/integration/rest-api.html
 
-## Recommendation
-
-Run two benchmark modes:
-
-1. Normalized mode
-   - Same NIM tags, same AI-Q version, same documents, same memory caps, same context limits.
-   - Best answer to: "How much faster is B300 than B200 under the same deployment constraints?"
-
-2. Best-effort mode
-   - Tune B200 and B300 independently to the largest stable concurrency/KV cache.
-   - Best answer to: "What is the practical throughput I can get from each GPU?"
-
-For procurement or architecture comparison, report both. Normalized mode is the clean comparison; best-effort mode is the operational answer.
-
 ## Dataset
 
-Use the same fixed input set on both hosts. Prefer a visual-heavy set because this benchmark is specifically about VLM ingestion.
-
-Suggested tiers:
-
-- Small: 5 PDFs, 50-100 total pages
-- Medium: 20 PDFs, 300-600 total pages
-- Stress: 2+ large report PDFs, 1,000+ total pages
-
-Generate the public benchmark packs:
+Use the same fixed input set on both hosts. Generate all three public benchmark packs before running the benchmark:
 
 ```bash
 python3 generate_small_pdf_pack.py
@@ -48,131 +29,7 @@ python3 generate_medium_pdf_pack.py
 python3 generate_stress_pdf_pack.py
 ```
 
-The small and medium generators use PubMed Central Open Access PDF records. The stress generator uses large public IPCC report PDFs by default.
-
-Record for each tier:
-
-- file count
-- total bytes
-- approximate pages
-- approximate embedded images/charts
-
-Do not benchmark model download time. Start only after all NIMs are healthy and warmed.
-
-## B200 One-GPU Settings
-
-A single B200 has about 180 GB of HBM. It should run the full local setup, but the containers need explicit memory limits because vLLM-backed NIMs allocate KV cache greedily by default.
-
-For B200, start with:
-
-```yaml
-services:
-  aiq-llm-nim:
-    command:
-      - --gpu-memory-utilization
-      - "0.12"
-      - --max-model-len
-      - "32768"
-      - --max-num-seqs
-      - "128"
-    environment:
-      PYTORCH_ALLOC_CONF: expandable_segments:True
-
-  aiq-vlm-nim:
-    environment:
-      NIM_KVCACHE_PERCENT: "0.25"
-      NIM_MAX_MODEL_LEN: "8192"
-      NIM_MAX_NUM_SEQS: "1"
-
-  aiq-embed-nim:
-    environment:
-      NGC_API_KEY: ${NGC_API_KEY}
-```
-
-If you disable document summaries for an ingestion-only benchmark, the LLM NIM will not materially affect ingestion. You can still leave it running to match the full pipeline, or stop it to isolate VLM + embedding performance.
-
-## B300 Normalized Settings
-
-For normalized comparison, use the same conservative caps as B200 even though B300 has more memory:
-
-```yaml
-services:
-  aiq-llm-nim:
-    command:
-      - --gpu-memory-utilization
-      - "0.12"
-      - --max-model-len
-      - "32768"
-      - --max-num-seqs
-      - "128"
-
-  aiq-vlm-nim:
-    environment:
-      NIM_KVCACHE_PERCENT: "0.25"
-      NIM_MAX_MODEL_LEN: "8192"
-      NIM_MAX_NUM_SEQS: "1"
-```
-
-For best-effort B300, raise these gradually:
-
-```yaml
-services:
-  aiq-llm-nim:
-    command:
-      - --gpu-memory-utilization
-      - "0.18"
-      - --max-model-len
-      - "32768"
-      - --max-num-seqs
-      - "256"
-
-  aiq-vlm-nim:
-    environment:
-      NIM_KVCACHE_PERCENT: "0.35"
-      NIM_MAX_MODEL_LEN: "16384"
-      NIM_MAX_NUM_SEQS: "2"
-```
-
-## Isolate VLM Ingestion
-
-The full LlamaIndex config may generate document summaries. If `generate_summary: true`, ingestion includes calls to `summary_llm`, which means your benchmark is VLM + embedding + LLM summary generation.
-
-For a pure document ingestion/VLM benchmark, set this in `configs/config_web_local_llamaindex.yml`:
-
-```yaml
-functions:
-  knowledge_search:
-    generate_summary: false
-```
-
-For a full-pipeline benchmark, leave summaries enabled and clearly label the results as "with summaries".
-
-## Warmup
-
-Run this before each measured run:
-
-```bash
-curl http://localhost:8000/health
-curl http://localhost:8001/v1/health/ready
-curl http://localhost:8002/v1/health/ready
-curl http://localhost:8003/v1/models
-
-curl -X POST http://localhost:8002/v1/embeddings \
-  -H 'Content-Type: application/json' \
-  -d '{"input":["warmup"],"model":"nvidia/llama-nemotron-embed-vl-1b-v2","input_type":"query","modality":"text"}'
-```
-
-If summaries are enabled, warm the LLM too:
-
-```bash
-curl -X POST http://localhost:8003/v1/chat/completions \
-  -H 'Content-Type: application/json' \
-  -d '{"model":"nvidia/nemotron-3-nano-30b-a3b","messages":[{"role":"user","content":"Say ready."}],"max_tokens":8}'
-```
-
-## Run the Benchmark
-
-After generating the three dataset tiers, benchmark each tier from this repo directory. The commands below assume these directories exist:
+The benchmark commands assume these directories exist:
 
 ```text
 datasets/small-pack/pdfs/*.pdf
@@ -180,24 +37,96 @@ datasets/medium-pack/pdfs/*.pdf
 datasets/stress-pack/pdfs/*.pdf
 ```
 
-Run B200 normalized mode:
+Suggested tiers:
+
+- Small: 5-10 PDFs, 50-100 total pages
+- Medium: 20-30 PDFs, 300-600 total pages
+- Stress: 2+ large report PDFs, 1,000+ total pages
+
+Keep each pack's `manifest.json` and `manifest.csv` with benchmark results.
+
+## Local NIMs
+
+Only two local NIMs should be running:
+
+```text
+aiq-embed-nim  localhost:8002
+aiq-vlm-nim    localhost:8001
+```
+
+Do not run `aiq-llm-nim` for the ingestion benchmark.
+
+Warm and verify before each measured run:
+
+```bash
+curl http://localhost:8000/health
+curl http://localhost:8002/v1/health/ready
+curl http://localhost:8001/v1/health/ready
+
+curl -X POST http://localhost:8002/v1/embeddings \
+  -H 'Content-Type: application/json' \
+  -d '{"input":["warmup"],"model":"nvidia/llama-nemotron-embed-vl-1b-v2","input_type":"query","modality":"text"}'
+```
+
+Use `nvidia-smi` to confirm the local LLM is not consuming VRAM:
+
+```bash
+docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+nvidia-smi
+```
+
+## AI-Q Config
+
+Use a copy of NVIDIA's default LlamaIndex config with summaries disabled:
+
+```bash
+cp configs/config_web_default_llamaindex.yml configs/config_web_ingestion_benchmark_llamaindex.yml
+```
+
+In `configs/config_web_ingestion_benchmark_llamaindex.yml`:
+
+```yaml
+functions:
+  knowledge_search:
+    generate_summary: false
+```
+
+In `deploy/.env`:
+
+```bash
+BACKEND_CONFIG=/app/configs/config_web_ingestion_benchmark_llamaindex.yml
+
+AIQ_EMBED_MODEL=nvidia/llama-nemotron-embed-vl-1b-v2
+AIQ_EMBED_BASE_URL=http://aiq-embed-nim:8000/v1
+
+AIQ_EXTRACT_IMAGES=true
+AIQ_EXTRACT_CHARTS=true
+AIQ_VLM_MODEL=nvidia/nemotron-nano-12b-v2-vl
+AIQ_VLM_BASE_URL=http://aiq-vlm-nim:8000/v1
+```
+
+The hosted LLMs remain in the default `llms:` block. Since summaries are disabled, hosted LLM latency should not materially affect ingestion timing.
+
+## Run The Benchmark
+
+Run B200:
 
 ```bash
 python3 benchmark_aiq_ingestion.py \
   --base-url http://localhost:8000 \
-  --label b200-normalized-small-run1 \
+  --label b200-ingestion-small-run1 \
   --outdir benchmark-results \
   datasets/small-pack/pdfs/*.pdf
 
 python3 benchmark_aiq_ingestion.py \
   --base-url http://localhost:8000 \
-  --label b200-normalized-medium-run1 \
+  --label b200-ingestion-medium-run1 \
   --outdir benchmark-results \
   datasets/medium-pack/pdfs/*.pdf
 
 python3 benchmark_aiq_ingestion.py \
   --base-url http://localhost:8000 \
-  --label b200-normalized-stress-run1 \
+  --label b200-ingestion-stress-run1 \
   --outdir benchmark-results \
   datasets/stress-pack/pdfs/*.pdf
 ```
@@ -205,44 +134,19 @@ python3 benchmark_aiq_ingestion.py \
 Repeat each tier at least three times:
 
 ```bash
-python3 benchmark_aiq_ingestion.py \
-  --base-url http://localhost:8000 \
-  --label b200-normalized-small-run2 \
-  --outdir benchmark-results \
-  datasets/small-pack/pdfs/*.pdf
-
-python3 benchmark_aiq_ingestion.py \
-  --base-url http://localhost:8000 \
-  --label b200-normalized-small-run3 \
-  --outdir benchmark-results \
-  datasets/small-pack/pdfs/*.pdf
+python3 benchmark_aiq_ingestion.py --label b200-ingestion-small-run2 datasets/small-pack/pdfs/*.pdf
+python3 benchmark_aiq_ingestion.py --label b200-ingestion-small-run3 datasets/small-pack/pdfs/*.pdf
 
 # Repeat the same run2/run3 pattern for medium and stress.
 ```
 
-Run the same commands on the B300 host, only changing `b200` to `b300` in the label:
+Run the same commands on B300, only changing `b200` to `b300` in the label:
 
 ```bash
-python3 benchmark_aiq_ingestion.py \
-  --base-url http://localhost:8000 \
-  --label b300-normalized-small-run1 \
-  --outdir benchmark-results \
-  datasets/small-pack/pdfs/*.pdf
-
-python3 benchmark_aiq_ingestion.py \
-  --base-url http://localhost:8000 \
-  --label b300-normalized-medium-run1 \
-  --outdir benchmark-results \
-  datasets/medium-pack/pdfs/*.pdf
-
-python3 benchmark_aiq_ingestion.py \
-  --base-url http://localhost:8000 \
-  --label b300-normalized-stress-run1 \
-  --outdir benchmark-results \
-  datasets/stress-pack/pdfs/*.pdf
+python3 benchmark_aiq_ingestion.py --label b300-ingestion-small-run1 datasets/small-pack/pdfs/*.pdf
+python3 benchmark_aiq_ingestion.py --label b300-ingestion-medium-run1 datasets/medium-pack/pdfs/*.pdf
+python3 benchmark_aiq_ingestion.py --label b300-ingestion-stress-run1 datasets/stress-pack/pdfs/*.pdf
 ```
-
-For best-effort mode, use the same dataset paths and change the label, for example `b200-best-effort-medium-run1` or `b300-best-effort-medium-run1`.
 
 Each run writes:
 
@@ -266,23 +170,27 @@ The CSV includes `nvidia-smi` samples:
 - power draw
 - temperature
 
-## What to Report
+## What To Report
 
-For each hardware/mode/tier, report median of three runs:
+For each hardware/tier, report the median of three runs:
 
 ```text
-hardware, mode, tier, summaries_enabled, files, total_mb, total_pages, total_visuals,
+hardware, tier, summaries_enabled, files, total_mb, total_pages, total_visuals,
 median_total_seconds, median_docs_per_minute, median_mb_per_minute,
 peak_vram_mb, mean_gpu_util_pct, peak_power_w
 ```
 
-Use median, not best run. Keep the raw JSON and CSV files as backup.
+Use:
+
+```text
+summaries_enabled=false
+```
+
+Keep the raw JSON, CSV, and dataset manifests as backup.
 
 ## Interpretation
 
-If B200 and B300 are close, ingestion is probably bottlenecked by PDF parsing, Python/LlamaIndex processing, upload overhead, or serialized VLM calls.
-
-If B300 pulls ahead mostly in best-effort mode, the difference is likely larger usable KV cache/concurrency rather than pure single-request latency.
+If B200 and B300 are close, ingestion is probably bottlenecked by PDF parsing, Python/LlamaIndex processing, upload overhead, ChromaDB writes, or serialized VLM calls.
 
 If GPU utilization is low while ingest time is high, look at:
 
@@ -292,18 +200,11 @@ If GPU utilization is low while ingest time is high, look at:
 - whether ingestion is serializing files/images
 - ChromaDB write latency
 
-If B200 OOMs, lower:
+If B200 runs out of memory, stop any local LLM container and keep only:
 
-```yaml
-NIM_KVCACHE_PERCENT: "0.20"
-NIM_MAX_NUM_SEQS: "1"
-```
-
-and lower the LLM cap:
-
-```yaml
---gpu-memory-utilization 0.10
---max-num-seqs 128
+```text
+aiq-embed-nim
+aiq-vlm-nim
 ```
 
 ## Notes
