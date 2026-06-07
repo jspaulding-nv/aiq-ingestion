@@ -34,24 +34,28 @@ DEFAULT_REPORTS = [
         "title": "IPCC AR6 Synthesis Report Full Volume",
         "license": "IPCC public report; check source terms",
         "url": "https://www.ipcc.ch/report/ar6/syr/downloads/report/IPCC_AR6_SYR_FullVolume.pdf",
+        "expected_pages": 200,
     },
     {
         "source": "ipcc",
         "title": "IPCC AR6 Working Group I Full Report",
         "license": "IPCC public report; check source terms",
         "url": "https://www.ipcc.ch/report/ar6/wg1/downloads/report/IPCC_AR6_WGI_FullReport.pdf",
+        "expected_pages": 2409,
     },
     {
         "source": "ipcc",
         "title": "IPCC AR6 Working Group II Full Report",
         "license": "IPCC public report; check source terms",
         "url": "https://www.ipcc.ch/report/ar6/wg2/downloads/report/IPCC_AR6_WGII_FullReport.pdf",
+        "expected_pages": 3080,
     },
     {
         "source": "ipcc",
         "title": "IPCC AR6 Working Group III Full Report",
         "license": "IPCC public report; check source terms",
         "url": "https://www.ipcc.ch/report/ar6/wg3/downloads/report/IPCC_AR6_WGIII_FullReport.pdf",
+        "expected_pages": 2053,
     },
 ]
 
@@ -119,6 +123,7 @@ def write_manifest(outdir: Path, manifest: list[dict[str, object]], settings: di
         "sha256",
         "bytes",
         "estimated_pages",
+        "raw_estimated_pages",
         "estimated_image_xobjects",
         "license",
     ]
@@ -151,7 +156,8 @@ python3 benchmark_aiq_ingestion.py --label b200-stress-run1 {outdir / "pdfs"}/*.
 Notes:
 
 - This pack is intentionally heavy. Start with the small and medium packs before running it.
-- Page and image counts are lightweight PDF estimates, not authoritative annotations.
+- Page counts use known approximate IPCC AR6 counts because large report PDFs can fool lightweight PDF counters.
+- Image counts are lightweight PDF estimates, not authoritative annotations.
 - Keep `manifest.json` and `manifest.csv` with benchmark results so B200 and B300 runs use the same files.
 - The included reports are public PDFs, but always check source terms before redistributing the pack.
 
@@ -225,7 +231,8 @@ def main() -> int:
             else:
                 print(f"Reusing existing {path.name}")
 
-            pages = estimate_pdf_pages(path)
+            raw_pages = estimate_pdf_pages(path)
+            pages = int(report.get("expected_pages") or raw_pages)
             images = estimate_pdf_images(path)
             item = {
                 **report,
@@ -234,6 +241,7 @@ def main() -> int:
                 "bytes": path.stat().st_size,
                 "sha256": sha256_file(path),
                 "estimated_pages": pages,
+                "raw_estimated_pages": raw_pages,
                 "estimated_image_xobjects": images,
             }
             manifest.append(item)
