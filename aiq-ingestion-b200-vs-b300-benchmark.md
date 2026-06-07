@@ -167,30 +167,77 @@ curl -X POST http://localhost:8003/v1/chat/completions \
 
 ## Run the Benchmark
 
-From this directory:
+After generating the three dataset tiers, benchmark each tier from this repo directory. The commands below assume these directories exist:
+
+```text
+datasets/small-pack/pdfs/*.pdf
+datasets/medium-pack/pdfs/*.pdf
+datasets/stress-pack/pdfs/*.pdf
+```
+
+Run B200 normalized mode:
 
 ```bash
 python3 benchmark_aiq_ingestion.py \
   --base-url http://localhost:8000 \
+  --label b200-normalized-small-run1 \
+  --outdir benchmark-results \
+  datasets/small-pack/pdfs/*.pdf
+
+python3 benchmark_aiq_ingestion.py \
+  --base-url http://localhost:8000 \
   --label b200-normalized-medium-run1 \
   --outdir benchmark-results \
-  /path/to/benchmark-docs/medium/*.pdf
+  datasets/medium-pack/pdfs/*.pdf
+
+python3 benchmark_aiq_ingestion.py \
+  --base-url http://localhost:8000 \
+  --label b200-normalized-stress-run1 \
+  --outdir benchmark-results \
+  datasets/stress-pack/pdfs/*.pdf
 ```
 
-Repeat at least three times:
+Repeat each tier at least three times:
 
 ```bash
-python3 benchmark_aiq_ingestion.py --label b200-normalized-medium-run2 /path/to/benchmark-docs/medium/*.pdf
-python3 benchmark_aiq_ingestion.py --label b200-normalized-medium-run3 /path/to/benchmark-docs/medium/*.pdf
+python3 benchmark_aiq_ingestion.py \
+  --base-url http://localhost:8000 \
+  --label b200-normalized-small-run2 \
+  --outdir benchmark-results \
+  datasets/small-pack/pdfs/*.pdf
+
+python3 benchmark_aiq_ingestion.py \
+  --base-url http://localhost:8000 \
+  --label b200-normalized-small-run3 \
+  --outdir benchmark-results \
+  datasets/small-pack/pdfs/*.pdf
+
+# Repeat the same run2/run3 pattern for medium and stress.
 ```
 
-Run the same commands on the B300 host, only changing the label:
+Run the same commands on the B300 host, only changing `b200` to `b300` in the label:
 
 ```bash
-python3 benchmark_aiq_ingestion.py --label b300-normalized-medium-run1 /path/to/benchmark-docs/medium/*.pdf
-python3 benchmark_aiq_ingestion.py --label b300-normalized-medium-run2 /path/to/benchmark-docs/medium/*.pdf
-python3 benchmark_aiq_ingestion.py --label b300-normalized-medium-run3 /path/to/benchmark-docs/medium/*.pdf
+python3 benchmark_aiq_ingestion.py \
+  --base-url http://localhost:8000 \
+  --label b300-normalized-small-run1 \
+  --outdir benchmark-results \
+  datasets/small-pack/pdfs/*.pdf
+
+python3 benchmark_aiq_ingestion.py \
+  --base-url http://localhost:8000 \
+  --label b300-normalized-medium-run1 \
+  --outdir benchmark-results \
+  datasets/medium-pack/pdfs/*.pdf
+
+python3 benchmark_aiq_ingestion.py \
+  --base-url http://localhost:8000 \
+  --label b300-normalized-stress-run1 \
+  --outdir benchmark-results \
+  datasets/stress-pack/pdfs/*.pdf
 ```
+
+For best-effort mode, use the same dataset paths and change the label, for example `b200-best-effort-medium-run1` or `b300-best-effort-medium-run1`.
 
 Each run writes:
 
