@@ -67,14 +67,15 @@ def normalize_download_url(url: str) -> str:
 def pmc_download_url_candidates(url: str) -> list[str]:
     """Return current and legacy PMC OA download locations for a discovered URL."""
     normalized = normalize_download_url(url)
-    candidates = [normalized]
 
     # In April 2026 NCBI moved legacy PMC OA files under /pub/pmc/deprecated/.
-    # The OA API can still return old /pub/pmc/oa_pdf/... URLs, so try the
-    # relocated path before giving up.
+    # The OA API can still return old /pub/pmc/oa_pdf/... URLs, so prefer the
+    # relocated path and keep the original as a fallback.
     if normalized.startswith(PMC_FTP_HTTPS_PREFIX + "pub/pmc/"):
         suffix = normalized.removeprefix(PMC_FTP_HTTPS_PREFIX + "pub/pmc/")
-        candidates.append(PMC_FTP_DEPRECATED_PREFIX + suffix)
+        candidates = [PMC_FTP_DEPRECATED_PREFIX + suffix, normalized]
+    else:
+        candidates = [normalized]
 
     return list(dict.fromkeys(candidates))
 
