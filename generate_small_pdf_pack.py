@@ -17,7 +17,6 @@ import argparse
 import csv
 import hashlib
 import json
-import os
 from pathlib import Path
 import random
 import re
@@ -30,6 +29,8 @@ import xml.etree.ElementTree as ET
 
 
 PMC_OA_URL = "https://www.ncbi.nlm.nih.gov/pmc/utils/oa/oa.fcgi"
+PMC_FTP_HTTPS_PREFIX = "https://ftp.ncbi.nlm.nih.gov/"
+PMC_FTP_DEPRECATED_PREFIX = "https://ftp.ncbi.nlm.nih.gov/pub/pmc/deprecated/"
 
 
 def safe_filename(value: str, fallback: str) -> str:
@@ -61,6 +62,21 @@ def normalize_download_url(url: str) -> str:
     if url.startswith("ftp://ftp.ncbi.nlm.nih.gov/"):
         return "https://ftp.ncbi.nlm.nih.gov/" + url.removeprefix("ftp://ftp.ncbi.nlm.nih.gov/")
     return url
+
+
+def pmc_download_url_candidates(url: str) -> list[str]:
+    """Return current and legacy PMC OA download locations for a discovered URL."""
+    normalized = normalize_download_url(url)
+    candidates = [normalized]
+
+    # In April 2026 NCBI moved legacy PMC OA files under /pub/pmc/deprecated/.
+    # The OA API can still return old /pub/pmc/oa_pdf/... URLs, so try the
+    # relocated path before giving up.
+    if normalized.startswith(PMC_FTP_HTTPS_PREFIX + "pub/pmc/"):
+        suffix = normalized.removeprefix(PMC_FTP_HTTPS_PREFIX + "pub/pmc/")
+        candidates.append(PMC_FTP_DEPRECATED_PREFIX + suffix)
+
+    return list(dict.fromkeys(candidates))
 
 
 def fetch_url(url: str, user_agent: str, timeout: int, retries: int = 3) -> bytes:
@@ -114,6 +130,7 @@ def discover_pmc_candidates(
                     "license": license_name,
                     "updated": link.attrib.get("updated", ""),
                     "url": normalize_download_url(href),
+                    "download_candidates": pmc_download_url_candidates(href),
                 }
             )
             break
@@ -143,6 +160,7 @@ def write_manifest(outdir: Path, manifest: list[dict[str, object]], settings: di
         "source",
         "pmcid",
         "url",
+        "download_url",
         "sha256",
         "bytes",
         "estimated_pages",
@@ -252,13 +270,24 @@ def main() -> int:
 
         try:
             if not path.exists():
-                print(f"Downloading {pmcid}: {candidate['url']}")
-                data = fetch_url(candidate["url"], user_agent=args.user_agent, timeout=args.timeout)
+                data = None
+                selected_url = ""
+                for url in candidate.get("download_candidates", [candidate["url"]]):
+                    print(f"Downloading {pmcid}: {url}")
+                    try:
+                        data = fetch_url(url, user_agent=args.user_agent, timeout=args.timeout)
+                        selected_url = url
+                        break
+                    except Exception as exc:  # noqa: BLE001 - try the next candidate URL.
+                        print(f"Failed candidate {url}: {exc}")
+                if data is None:
+                    raise RuntimeError("all download URL candidates failed")
                 if not data.startswith(b"%PDF"):
                     raise RuntimeError("download did not look like a PDF")
                 path.write_bytes(data)
             else:
                 print(f"Reusing existing {path.name}")
+                selected_url = str(candidate["url"])
 
             pages = estimate_pdf_pages(path)
             if pages < args.min_pages_per_file or pages > args.max_pages_per_file:
@@ -274,6 +303,7 @@ def main() -> int:
                 **candidate,
                 "filename": path.name,
                 "path": str(path),
+                "download_url": selected_url,
                 "bytes": path.stat().st_size,
                 "sha256": sha256_file(path),
                 "estimated_pages": pages,
