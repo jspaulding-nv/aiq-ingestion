@@ -18,11 +18,11 @@ import csv
 import json
 from pathlib import Path
 import time
+import urllib.request
 
 from generate_small_pdf_pack import (
     estimate_pdf_images,
     estimate_pdf_pages,
-    fetch_url,
     safe_filename,
     sha256_file,
 )
@@ -54,6 +54,47 @@ DEFAULT_REPORTS = [
         "url": "https://www.ipcc.ch/report/ar6/wg3/downloads/report/IPCC_AR6_WGIII_FullReport.pdf",
     },
 ]
+
+
+def download_pdf_streaming(
+    url: str,
+    path: Path,
+    user_agent: str,
+    timeout: int,
+    progress_interval: float,
+) -> None:
+    request = urllib.request.Request(url, headers={"User-Agent": user_agent})
+    part_path = path.with_suffix(path.suffix + ".part")
+    downloaded = 0
+    last_progress = 0.0
+
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        total_header = response.headers.get("Content-Length")
+        total_bytes = int(total_header) if total_header and total_header.isdigit() else None
+        total_mb = total_bytes / 1_000_000 if total_bytes else None
+
+        with part_path.open("wb") as handle:
+            while True:
+                chunk = response.read(1024 * 1024)
+                if not chunk:
+                    break
+                handle.write(chunk)
+                downloaded += len(chunk)
+
+                now = time.monotonic()
+                if now - last_progress >= progress_interval:
+                    downloaded_mb = downloaded / 1_000_000
+                    if total_mb:
+                        print(f"  downloaded {downloaded_mb:.1f}/{total_mb:.1f} MB")
+                    else:
+                        print(f"  downloaded {downloaded_mb:.1f} MB")
+                    last_progress = now
+
+    with part_path.open("rb") as handle:
+        if handle.read(4) != b"%PDF":
+            raise RuntimeError("download did not look like a PDF")
+
+    part_path.replace(path)
 
 
 def write_manifest(outdir: Path, manifest: list[dict[str, object]], settings: dict[str, object]) -> None:
@@ -130,6 +171,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-files", type=int, default=2, help="Maximum number of large reports to download.")
     parser.add_argument("--timeout", type=int, default=600, help="HTTP timeout per request in seconds.")
     parser.add_argument(
+        "--progress-interval",
+        type=float,
+        default=5.0,
+        help="Seconds between large-download progress messages.",
+    )
+    parser.add_argument(
         "--user-agent",
         default="aiq-ingestion-benchmark/1.0 (contact: benchmark-owner@example.com)",
         help="HTTP User-Agent. Set this to your org/contact if needed.",
@@ -168,10 +215,13 @@ def main() -> int:
         try:
             if not path.exists():
                 print(f"Downloading {report['title']}: {url}")
-                data = fetch_url(url, user_agent=args.user_agent, timeout=args.timeout)
-                if not data.startswith(b"%PDF"):
-                    raise RuntimeError("download did not look like a PDF")
-                path.write_bytes(data)
+                download_pdf_streaming(
+                    url=url,
+                    path=path,
+                    user_agent=args.user_agent,
+                    timeout=args.timeout,
+                    progress_interval=args.progress_interval,
+                )
             else:
                 print(f"Reusing existing {path.name}")
 
