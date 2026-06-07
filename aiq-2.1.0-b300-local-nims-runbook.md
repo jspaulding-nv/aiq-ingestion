@@ -152,7 +152,7 @@ services:
       - "8003:8000"
     command:
       - --gpu-memory-utilization
-      - "0.45"
+      - "0.12"
       - --max-model-len
       - "32768"
 
@@ -199,7 +199,7 @@ services:
       AIQ_VLM_BASE_URL: ${AIQ_VLM_BASE_URL}
 ```
 
-The LLM NIM is capped at 45% of B300 VRAM because vLLM-backed NIMs greedily allocate remaining memory for KV cache. If you need longer context, increase `--max-model-len` and/or `--gpu-memory-utilization`, then watch `nvidia-smi`.
+The LLM NIM is capped at 12% of B300 VRAM when all three local NIMs run on the same GPU. vLLM interprets `--gpu-memory-utilization` as a fraction of total GPU memory and refuses to start if that requested reservation is larger than currently free memory. Raise this only after confirming the VLM and embedding NIMs leave enough free VRAM in `nvidia-smi`.
 
 ## 6. Login and Start
 
@@ -279,5 +279,5 @@ curl -N http://localhost:8000/v1/jobs/async/job/<job_id>/stream
 - Re-ingest documents after changing embedding models or embedding endpoints.
 - The VLM NIM is used during ingestion for image/chart extraction, not for every query.
 - If AI-Q cannot reach local NIMs from inside Docker, check that base URLs use service names such as `http://aiq-llm-nim:8000/v1`, not `localhost`.
-- If the LLM NIM OOMs during graph capture or warmup, lower `--gpu-memory-utilization` to `0.40` or set `NIM_DISABLE_CUDA_GRAPH=1`.
+- If the LLM NIM fails with `Free memory ... is less than desired GPU memory utilization`, lower `--gpu-memory-utilization` to `0.10` or stop/reconfigure the other NIMs so more VRAM is free. If it OOMs during graph capture or warmup, set `NIM_DISABLE_CUDA_GRAPH=1`.
 - If you do not want external web search, remove `web_search_tool` and `advanced_web_search_tool` from the YAML and from each agent's `tools:` list.

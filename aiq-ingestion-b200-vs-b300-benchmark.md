@@ -70,7 +70,7 @@ services:
   aiq-llm-nim:
     command:
       - --gpu-memory-utilization
-      - "0.35"
+      - "0.12"
       - --max-model-len
       - "32768"
     environment:
@@ -91,14 +91,14 @@ If you disable document summaries for an ingestion-only benchmark, the LLM NIM w
 
 ## B300 Normalized Settings
 
-For normalized comparison, use the same caps as B200 even though B300 has more memory:
+For normalized comparison, use the same conservative caps as B200 even though B300 has more memory:
 
 ```yaml
 services:
   aiq-llm-nim:
     command:
       - --gpu-memory-utilization
-      - "0.35"
+      - "0.12"
       - --max-model-len
       - "32768"
 
@@ -116,7 +116,7 @@ services:
   aiq-llm-nim:
     command:
       - --gpu-memory-utilization
-      - "0.45"
+      - "0.18"
       - --max-model-len
       - "32768"
 
@@ -296,7 +296,7 @@ NIM_MAX_NUM_SEQS: "1"
 and lower the LLM cap:
 
 ```yaml
---gpu-memory-utilization 0.30
+--gpu-memory-utilization 0.10
 ```
 
 ## Notes
