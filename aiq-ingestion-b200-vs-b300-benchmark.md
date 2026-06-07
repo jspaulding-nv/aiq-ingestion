@@ -73,6 +73,8 @@ services:
       - "0.12"
       - --max-model-len
       - "32768"
+      - --max-num-seqs
+      - "128"
     environment:
       PYTORCH_ALLOC_CONF: expandable_segments:True
 
@@ -101,6 +103,8 @@ services:
       - "0.12"
       - --max-model-len
       - "32768"
+      - --max-num-seqs
+      - "128"
 
   aiq-vlm-nim:
     environment:
@@ -119,6 +123,8 @@ services:
       - "0.18"
       - --max-model-len
       - "32768"
+      - --max-num-seqs
+      - "256"
 
   aiq-vlm-nim:
     environment:
@@ -297,6 +303,7 @@ and lower the LLM cap:
 
 ```yaml
 --gpu-memory-utilization 0.10
+--max-num-seqs 128
 ```
 
 ## Notes
