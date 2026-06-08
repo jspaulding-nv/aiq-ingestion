@@ -1,0 +1,156 @@
+{
+  "estimated_total_image_xobjects": 72,
+  "estimated_total_pages": 100,
+  "files": [
+    {
+      "bytes": 6046840,
+      "citation": "Commun Biol. 2024 Dec 31; 7:1717",
+      "download_candidates": [
+        "https://ftp.ncbi.nlm.nih.gov/pub/pmc/deprecated/oa_pdf/f9/18/42003_2024_Article_7402.PMC11688426.pdf",
+        "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_pdf/f9/18/42003_2024_Article_7402.PMC11688426.pdf"
+      ],
+      "download_url": "https://ftp.ncbi.nlm.nih.gov/pub/pmc/deprecated/oa_pdf/f9/18/42003_2024_Article_7402.PMC11688426.pdf",
+      "estimated_image_xobjects": 11,
+      "estimated_pages": 14,
+      "filename": "PMC11688426-42003_2024_Article_7402.PMC11688426.pdf",
+      "license": "CC BY-NC-ND",
+      "path": "/localhome/local-jspaulding/aiq-ingestion/datasets/small-pack/pdfs/PMC11688426-42003_2024_Article_7402.PMC11688426.pdf",
+      "pmcid": "PMC11688426",
+      "sha256": "ccd0227bbc78ae74f29fd854d360e731e75336b64b6921f9db1234ce2ff09f3e",
+      "source": "pmc_oa",
+      "updated": "2025-01-01 02:49:55",
+      "url": "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_pdf/f9/18/42003_2024_Article_7402.PMC11688426.pdf"
+    },
+    {
+      "bytes": 1372088,
+      "citation": "Neural Regen Res. 2024 Jan 31; 20(6):1681-1695",
+      "download_candidates": [
+        "https://ftp.ncbi.nlm.nih.gov/pub/pmc/deprecated/oa_pdf/23/07/NRR-20-1681.PMC11688563.pdf",
+        "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_pdf/23/07/NRR-20-1681.PMC11688563.pdf"
+      ],
+      "download_url": "https://ftp.ncbi.nlm.nih.gov/pub/pmc/deprecated/oa_pdf/23/07/NRR-20-1681.PMC11688563.pdf",
+      "estimated_image_xobjects": 2,
+      "estimated_pages": 15,
+      "filename": "PMC11688563-NRR-20-1681.PMC11688563.pdf",
+      "license": "CC BY-NC-SA",
+      "path": "/localhome/local-jspaulding/aiq-ingestion/datasets/small-pack/pdfs/PMC11688563-NRR-20-1681.PMC11688563.pdf",
+      "pmcid": "PMC11688563",
+      "sha256": "2ab19244ed027d772a2777ffea36be29a89b475b5338ee38b515f3e9d5c78bbc",
+      "source": "pmc_oa",
+      "updated": "2025-01-01 05:05:09",
+      "url": "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_pdf/23/07/NRR-20-1681.PMC11688563.pdf"
+    },
+    {
+      "bytes": 7175750,
+      "citation": "NPJ Biofilms Microbiomes. 2024 Dec 31; 10:158",
+      "download_candidates": [
+        "https://ftp.ncbi.nlm.nih.gov/pub/pmc/deprecated/oa_pdf/60/df/41522_2024_Article_630.PMC11688498.pdf",
+        "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_pdf/60/df/41522_2024_Article_630.PMC11688498.pdf"
+      ],
+      "download_url": "https://ftp.ncbi.nlm.nih.gov/pub/pmc/deprecated/oa_pdf/60/df/41522_2024_Article_630.PMC11688498.pdf",
+      "estimated_image_xobjects": 8,
+      "estimated_pages": 12,
+      "filename": "PMC11688498-41522_2024_Article_630.PMC11688498.pdf",
+      "license": "CC BY-NC-ND",
+      "path": "/localhome/local-jspaulding/aiq-ingestion/datasets/small-pack/pdfs/PMC11688498-41522_2024_Article_630.PMC11688498.pdf",
+      "pmcid": "PMC11688498",
+      "sha256": "4da8fa7049bf530fb3daf05c59ab16c13c65223ba39c73efe7e972ab3d803d33",
+      "source": "pmc_oa",
+      "updated": "2025-01-01 03:08:42",
+      "url": "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_pdf/60/df/41522_2024_Article_630.PMC11688498.pdf"
+    },
+    {
+      "bytes": 6383833,
+      "citation": "Sci Rep. 2024 Dec 31; 14:31548",
+      "download_candidates": [
+        "https://ftp.ncbi.nlm.nih.gov/pub/pmc/deprecated/oa_pdf/21/70/41598_2024_Article_82512.PMC11688460.pdf",
+        "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_pdf/21/70/41598_2024_Article_82512.PMC11688460.pdf"
+      ],
+      "download_url": "https://ftp.ncbi.nlm.nih.gov/pub/pmc/deprecated/oa_pdf/21/70/41598_2024_Article_82512.PMC11688460.pdf",
+      "estimated_image_xobjects": 8,
+      "estimated_pages": 20,
+      "filename": "PMC11688460-41598_2024_Article_82512.PMC11688460.pdf",
+      "license": "CC BY-NC-ND",
+      "path": "/localhome/local-jspaulding/aiq-ingestion/datasets/small-pack/pdfs/PMC11688460-41598_2024_Article_82512.PMC11688460.pdf",
+      "pmcid": "PMC11688460",
+      "sha256": "ec9d0e65a2e42fe43da17625ac697dd2f361e9a1eef1169754dfaccc49adf6e1",
+      "source": "pmc_oa",
+      "updated": "2025-01-01 02:59:10",
+      "url": "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_pdf/21/70/41598_2024_Article_82512.PMC11688460.pdf"
+    },
+    {
+      "bytes": 6354890,
+      "citation": "Neural Regen Res. 2024 Jun 3; 20(6):1613-1627",
+      "download_candidates": [
+        "https://ftp.ncbi.nlm.nih.gov/pub/pmc/deprecated/oa_pdf/e2/96/NRR-20-1613.PMC11688546.pdf",
+        "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_pdf/e2/96/NRR-20-1613.PMC11688546.pdf"
+      ],
+      "download_url": "https://ftp.ncbi.nlm.nih.gov/pub/pmc/deprecated/oa_pdf/e2/96/NRR-20-1613.PMC11688546.pdf",
+      "estimated_image_xobjects": 10,
+      "estimated_pages": 15,
+      "filename": "PMC11688546-NRR-20-1613.PMC11688546.pdf",
+      "license": "CC BY-NC-SA",
+      "path": "/localhome/local-jspaulding/aiq-ingestion/datasets/small-pack/pdfs/PMC11688546-NRR-20-1613.PMC11688546.pdf",
+      "pmcid": "PMC11688546",
+      "sha256": "b0ae7b18639dd642369b19e8830d1ba467d1bdaf41b59a41c990e6d2e8285a63",
+      "source": "pmc_oa",
+      "updated": "2025-01-01 05:05:09",
+      "url": "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_pdf/e2/96/NRR-20-1613.PMC11688546.pdf"
+    },
+    {
+      "bytes": 11396713,
+      "citation": "Neural Regen Res. 2024 May 13; 20(6):1665-1680",
+      "download_candidates": [
+        "https://ftp.ncbi.nlm.nih.gov/pub/pmc/deprecated/oa_pdf/a4/05/NRR-20-1665.PMC11688544.pdf",
+        "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_pdf/a4/05/NRR-20-1665.PMC11688544.pdf"
+      ],
+      "download_url": "https://ftp.ncbi.nlm.nih.gov/pub/pmc/deprecated/oa_pdf/a4/05/NRR-20-1665.PMC11688544.pdf",
+      "estimated_image_xobjects": 16,
+      "estimated_pages": 16,
+      "filename": "PMC11688544-NRR-20-1665.PMC11688544.pdf",
+      "license": "CC BY-NC-SA",
+      "path": "/localhome/local-jspaulding/aiq-ingestion/datasets/small-pack/pdfs/PMC11688544-NRR-20-1665.PMC11688544.pdf",
+      "pmcid": "PMC11688544",
+      "sha256": "da44ab95d8db8d9beddba5a7cf83ac5252477a5df19996f1c1b995d144a6714f",
+      "source": "pmc_oa",
+      "updated": "2025-01-01 05:05:09",
+      "url": "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_pdf/a4/05/NRR-20-1665.PMC11688544.pdf"
+    },
+    {
+      "bytes": 4828085,
+      "citation": "J Am Chem Soc. 2024 Sep 25; 146(40):27956-27963",
+      "download_candidates": [
+        "https://ftp.ncbi.nlm.nih.gov/pub/pmc/deprecated/oa_pdf/e4/2e/ja4c11413.PMC11688659.pdf",
+        "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_pdf/e4/2e/ja4c11413.PMC11688659.pdf"
+      ],
+      "download_url": "https://ftp.ncbi.nlm.nih.gov/pub/pmc/deprecated/oa_pdf/e4/2e/ja4c11413.PMC11688659.pdf",
+      "estimated_image_xobjects": 17,
+      "estimated_pages": 8,
+      "filename": "PMC11688659-ja4c11413.PMC11688659.pdf",
+      "license": "CC BY-NC-ND",
+      "path": "/localhome/local-jspaulding/aiq-ingestion/datasets/small-pack/pdfs/PMC11688659-ja4c11413.PMC11688659.pdf",
+      "pmcid": "PMC11688659",
+      "sha256": "327a12340af09bb1ffd43127f2b6325cd207c083059d10a52caf34d9af980223",
+      "source": "pmc_oa",
+      "updated": "2025-01-01 09:18:44",
+      "url": "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_pdf/e4/2e/ja4c11413.PMC11688659.pdf"
+    }
+  ],
+  "generated_at_utc": "2026-06-07T17:30:45Z",
+  "settings": {
+    "max_candidates": 250,
+    "max_pages_per_file": 20,
+    "max_total_pages": 100,
+    "min_pages_per_file": 4,
+    "min_total_pages": 50,
+    "outdir": "/localhome/local-jspaulding/aiq-ingestion/datasets/small-pack",
+    "seed": 42,
+    "start_date": "2025-01-01",
+    "target_files": 8,
+    "timeout": 120,
+    "until_date": "2025-03-31",
+    "user_agent": "aiq-ingestion-benchmark/1.0 (contact: benchmark-owner@example.com)"
+  },
+  "total_bytes": 43558199,
+  "total_files": 7
+}

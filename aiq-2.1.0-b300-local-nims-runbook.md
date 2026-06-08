@@ -71,14 +71,28 @@ AIQ_SUMMARY_DB=postgresql+psycopg://aiq:aiq_dev@postgres:5432/aiq_jobs
 Create the local NIM cache directory for the VLM:
 
 ```bash
-mkdir -p /localhome/local-jspaulding/.cache/nim
+sudo mkdir -p /localhome/local-jspaulding/.cache/nim/vlm
+sudo chmod -R 777 /localhome/local-jspaulding/.cache/nim
 ```
 
-If you previously created the cache as another user or with root-owned files:
+If VLM readiness fails with `/opt/nim/.cache is read-only` or `PermissionError: /opt/nim/.cache/local_cache`, repair the mounted cache and recreate the affected services:
 
 ```bash
-CACHE="$(awk -F= '/^LOCAL_NIM_CACHE=/{print $2}' deploy/.env)"
-chmod -R a+rwX "$CACHE"
+cd ~/aiq
+
+CACHE="$(awk -F= '/^LOCAL_NIM_CACHE=/{print $2}' deploy/.env | tail -1)"
+
+sudo mkdir -p "$CACHE/vlm"
+sudo chmod -R 777 "$CACHE"
+
+cd ~/aiq/deploy/compose
+
+docker rm -f aiq-vlm-nim 2>/dev/null || true
+
+docker compose --env-file ../.env \
+  -f docker-compose.yaml \
+  -f docker-compose.ingestion-local-vlm.yaml \
+  up -d --force-recreate aiq-vlm-nim aiq-agent
 ```
 
 ## 4. Create Ingestion Benchmark Config
@@ -173,6 +187,12 @@ curl -X POST https://integrate.api.nvidia.com/v1/embeddings \
 
 There is no local embedding or local LLM smoke test in this benchmark setup.
 
+If readiness remains unhealthy, inspect the VLM startup logs first:
+
+```bash
+docker logs --tail 200 aiq-vlm-nim
+```
+
 ## 8. Run Ingestion Benchmark
 
 Use the generated dataset packs:
@@ -191,5 +211,12 @@ Run the same commands on B300 with labels such as `b300-small-run1`.
 - The VLM NIM is used during ingestion for image/chart extraction, not for every query.
 - If AI-Q cannot reach the local VLM from inside Docker, check that `AIQ_VLM_BASE_URL` uses the service name `http://aiq-vlm-nim:8000/v1`, not `localhost`.
 - Hosted embedding latency is now part of the benchmark. Use repeated runs and compare medians so transient network/API variance does not dominate the result.
+- The public NVIDIA hosted endpoint can be limited to 40 RPM. If medium or stress runs hit rate limits, label those results as hosted-embedding/API-limited.
 - If you keep `generate_summary: false`, hosted LLM latency should not be part of the ingestion benchmark.
 - If you later benchmark full query/research workflows, label that separately because it exercises hosted LLM calls and is not a pure ingestion benchmark.
+
+Watch AI-Q backend logs for hosted embedding throttling:
+
+```bash
+docker logs -f aiq-agent | egrep -i '429|rate|limit|retry|embedding|integrate.api'
+```

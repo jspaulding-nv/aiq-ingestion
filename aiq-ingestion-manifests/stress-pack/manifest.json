@@ -1,0 +1,46 @@
+{
+  "estimated_total_image_xobjects": 4850,
+  "estimated_total_pages": 2609,
+  "files": [
+    {
+      "bytes": 4913496,
+      "estimated_image_xobjects": 58,
+      "estimated_pages": 200,
+      "expected_pages": 200,
+      "filename": "IPCC_AR6_SYR_FullVolume.pdf",
+      "license": "IPCC public report; check source terms",
+      "path": "/localhome/local-jspaulding/aiq-ingestion/datasets/stress-pack/pdfs/IPCC_AR6_SYR_FullVolume.pdf",
+      "raw_estimated_pages": 1,
+      "sha256": "f5258cf9434fd8887848e334197b6397ad6e107a6f06ddf21a00b2bce3f5dee6",
+      "source": "ipcc",
+      "title": "IPCC AR6 Synthesis Report Full Volume",
+      "url": "https://www.ipcc.ch/report/ar6/syr/downloads/report/IPCC_AR6_SYR_FullVolume.pdf"
+    },
+    {
+      "bytes": 352240074,
+      "estimated_image_xobjects": 4792,
+      "estimated_pages": 2409,
+      "expected_pages": 2409,
+      "filename": "IPCC_AR6_WGI_FullReport.pdf",
+      "license": "IPCC public report; check source terms",
+      "path": "/localhome/local-jspaulding/aiq-ingestion/datasets/stress-pack/pdfs/IPCC_AR6_WGI_FullReport.pdf",
+      "raw_estimated_pages": 2048,
+      "sha256": "10b4774ef4cc6618618e645f469695a2fb19a36cae79f0622e01eabcff6e6848",
+      "source": "ipcc",
+      "title": "IPCC AR6 Working Group I Full Report",
+      "url": "https://www.ipcc.ch/report/ar6/wg1/downloads/report/IPCC_AR6_WGI_FullReport.pdf"
+    }
+  ],
+  "generated_at_utc": "2026-06-07T18:04:05Z",
+  "settings": {
+    "include_all_ipcc": false,
+    "max_files": 2,
+    "min_total_pages": 1000,
+    "outdir": "/localhome/local-jspaulding/aiq-ingestion/datasets/stress-pack",
+    "progress_interval": 5.0,
+    "timeout": 600,
+    "user_agent": "aiq-ingestion-benchmark/1.0 (contact: benchmark-owner@example.com)"
+  },
+  "total_bytes": 357153570,
+  "total_files": 2
+}

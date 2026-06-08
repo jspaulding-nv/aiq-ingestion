@@ -4,6 +4,7 @@ This benchmark compares AI-Q 2.1.0 document ingestion using the LlamaIndex knowl
 
 - `AIQ_EXTRACT_IMAGES=true`
 - `AIQ_EXTRACT_CHARTS=true`
+- `AIQ_EXTRACT_TABLES=true`
 - local VLM NIM: `nvidia/nemotron-nano-12b-v2-vl`
 - hosted embeddings: `nvidia/llama-nemotron-embed-vl-1b-v2`
 - hosted LLMs from the default AI-Q config
@@ -98,6 +99,7 @@ BACKEND_CONFIG=/app/configs/config_web_ingestion_benchmark_llamaindex.yml
 AIQ_EMBED_MODEL=nvidia/llama-nemotron-embed-vl-1b-v2
 AIQ_EMBED_BASE_URL=https://integrate.api.nvidia.com/v1
 
+AIQ_EXTRACT_TABLES=true
 AIQ_EXTRACT_IMAGES=true
 AIQ_EXTRACT_CHARTS=true
 AIQ_VLM_MODEL=nvidia/nemotron-nano-12b-v2-vl
@@ -169,6 +171,14 @@ The CSV includes `nvidia-smi` samples:
 - power draw
 - temperature
 
+Watch the backend logs during medium and stress runs:
+
+```bash
+docker logs -f aiq-agent | egrep -i '429|rate|limit|retry|embedding|integrate.api'
+```
+
+If the hosted embedding endpoint throttles requests, label that run as hosted-embedding/API-limited. The small pack is the safest tier for avoiding the public API's 40 RPM limit.
+
 ## What To Report
 
 For each hardware/tier, report the median of three runs:
@@ -213,3 +223,4 @@ aiq-vlm-nim
 - Keep the same VLM NIM image tag across B200 and B300.
 - Keep `AIQ_VLM_BASE_URL` pointed at the local Docker service name inside AI-Q, not `localhost`.
 - Keep `AIQ_EMBED_BASE_URL` pointed at the same hosted endpoint on both systems.
+- Mark runs as hosted-embedding/API-limited if NVIDIA public endpoint rate limits affect ingestion.
