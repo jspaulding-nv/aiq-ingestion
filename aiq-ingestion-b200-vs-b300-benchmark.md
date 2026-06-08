@@ -110,9 +110,13 @@ The hosted LLMs remain in the default `llms:` block. Since summaries are disable
 
 ## Run The Benchmark
 
+Run these commands from the `aiq-ingestion` repo, where `benchmark_aiq_ingestion.py` and the generated `datasets/` directory live. Leave the AI-Q Docker stack running from the separate `~/aiq` checkout.
+
 Run B200:
 
 ```bash
+cd ~/aiq-ingestion
+
 python3 benchmark_aiq_ingestion.py \
   --base-url http://localhost:8000 \
   --label b200-ingestion-small-run1 \

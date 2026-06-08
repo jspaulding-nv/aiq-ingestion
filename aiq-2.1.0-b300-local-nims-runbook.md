@@ -195,9 +195,11 @@ docker logs --tail 200 aiq-vlm-nim
 
 ## 8. Run Ingestion Benchmark
 
-Use the generated dataset packs:
+Run the benchmark from the separate `aiq-ingestion` repo, where `benchmark_aiq_ingestion.py` and the generated `datasets/` directory live. Leave the AI-Q Docker stack running in `~/aiq`.
 
 ```bash
+cd ~/aiq-ingestion
+
 python3 benchmark_aiq_ingestion.py --label b200-small-run1 datasets/small-pack/pdfs/*.pdf
 python3 benchmark_aiq_ingestion.py --label b200-medium-run1 datasets/medium-pack/pdfs/*.pdf
 python3 benchmark_aiq_ingestion.py --label b200-stress-run1 datasets/stress-pack/pdfs/*.pdf
