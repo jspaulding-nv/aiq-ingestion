@@ -158,6 +158,8 @@ Each run writes:
 - `benchmark-results/<label>-<timestamp>.json`
 - `benchmark-results/<label>-<timestamp>-gpu.csv`
 
+During polling, mixed status lines such as `PROCESSING,SUCCESS,INGESTING,UPLOADING` mean the asynchronous job is still running. A measured run is complete only after every reported job/document status is terminal, or as soon as any failure status appears.
+
 The JSON includes:
 
 - total elapsed ingestion time

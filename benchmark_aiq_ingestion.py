@@ -126,7 +126,7 @@ def terminal_status(status_doc: object) -> tuple[bool, bool, str]:
         return False, False, "UNKNOWN"
 
     failed = any(status in FAILURE_STATUSES for status in values)
-    done = any(status in TERMINAL_STATUSES for status in values)
+    done = all(status in TERMINAL_STATUSES for status in values)
     return done, failed, ",".join(values)
 
 
@@ -258,7 +258,7 @@ def main() -> int:
             )
             print(f"[{utc_now()}] status={status_text}")
             final_status = status_doc
-            if done:
+            if done or failed:
                 run_result["failed"] = failed
                 break
             time.sleep(args.poll_interval)
