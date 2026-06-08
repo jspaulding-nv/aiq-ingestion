@@ -1,20 +1,19 @@
-# AI-Q 2.1.0 Ingestion Benchmark With Local VLM + Embeddings
+# AI-Q 2.1.0 Ingestion Benchmark With Local VLM
 
 This runbook deploys the AI-Q 2.1.0 full pipeline LlamaIndex example for document-ingestion benchmarking with:
 
 - Local VLM NIM: `nvidia/nemotron-nano-12b-v2-vl`
-- Local embedding NIM: `nvidia/llama-nemotron-embed-vl-1b-v2`
+- Hosted embeddings: `nvidia/llama-nemotron-embed-vl-1b-v2`
 - Hosted LLMs from the default AI-Q config
 - `generate_summary: false` so ingestion timing does not include LLM summary generation
 
-This is the recommended setup for B200 vs B300 ingestion benchmarking. It keeps the GPU workload focused on VLM extraction and embeddings instead of adding local LLM VRAM contention.
+This is the recommended setup for B200 vs B300 ingestion benchmarking after the local embedding NIM failed on B300 with `CUDA_ERROR_NO_BINARY_FOR_GPU` while trying to load `sm_100a` kernels on an `sm_103a` GPU. It keeps the local GPU workload focused on VLM extraction and avoids both local LLM VRAM contention and the current B300 embedding-kernel mismatch.
 
 ## References
 
 - AI-Q 2.1.0 full pipeline LlamaIndex example: https://docs.nvidia.com/aiq-blueprint/2.1.0/examples/full-pipeline-llamaindex.html
 - AI-Q 2.1.0 Docker Compose deployment: https://docs.nvidia.com/aiq-blueprint/2.1.0/deployment/docker-compose.html
 - AI-Q 2.1.0 knowledge layer multimodal variables: https://docs.nvidia.com/aiq-blueprint/2.1.0/customization/knowledge-layer.html
-- NeMo Retriever embedding NIM support matrix: https://docs.nvidia.com/nim/nemo-retriever/text-embedding/2.0.0/support-matrix.html
 - VLM NIM support matrix for Nemotron Nano 12B v2 VL: https://docs.nvidia.com/nim/vision-language-models/1.6.0/support-matrix.html
 
 ## 1. Host Prerequisites
@@ -56,7 +55,7 @@ BACKEND_CONFIG=/app/configs/config_web_ingestion_benchmark_llamaindex.yml
 AIQ_CHROMA_DIR=/app/data/chroma_data
 
 AIQ_EMBED_MODEL=nvidia/llama-nemotron-embed-vl-1b-v2
-AIQ_EMBED_BASE_URL=http://aiq-embed-nim:8000/v1
+AIQ_EMBED_BASE_URL=https://integrate.api.nvidia.com/v1
 
 AIQ_EXTRACT_TABLES=true
 AIQ_EXTRACT_IMAGES=true
@@ -69,7 +68,7 @@ AIQ_CHECKPOINT_DB=postgresql://aiq:aiq_dev@postgres:5432/aiq_checkpoints
 AIQ_SUMMARY_DB=postgresql+psycopg://aiq:aiq_dev@postgres:5432/aiq_jobs
 ```
 
-Create the cache directory:
+Create the local NIM cache directory for the VLM:
 
 ```bash
 mkdir -p /localhome/local-jspaulding/.cache/nim
@@ -98,27 +97,14 @@ functions:
     generate_summary: false
 ```
 
-Do not replace the `llms:` block with local LLM settings. Leaving the default hosted LLM block avoids local LLM VRAM contention and keeps ingestion timing focused on VLM extraction plus embeddings.
+Do not replace the `llms:` block with local LLM settings. Leaving the default hosted LLM block avoids local LLM VRAM contention. With `generate_summary: false`, hosted LLM latency should not materially affect ingestion timing.
 
 ## 5. Create Compose Override
 
-Create `deploy/compose/docker-compose.ingestion-local-nims.yaml`:
+Create `deploy/compose/docker-compose.ingestion-local-vlm.yaml`:
 
 ```yaml
 services:
-  aiq-embed-nim:
-    image: nvcr.io/nim/nvidia/llama-nemotron-embed-vl-1b-v2:2.0.0
-    container_name: aiq-embed-nim
-    gpus: all
-    ipc: host
-    shm_size: "16gb"
-    environment:
-      NGC_API_KEY: ${NGC_API_KEY}
-    volumes:
-      - ${LOCAL_NIM_CACHE}:/opt/nim/.cache
-    ports:
-      - "8002:8000"
-
   aiq-vlm-nim:
     image: nvcr.io/nim/nvidia/nemotron-nano-12b-v2-vl:1.6.0
     container_name: aiq-vlm-nim
@@ -135,7 +121,6 @@ services:
 
   aiq-agent:
     depends_on:
-      - aiq-embed-nim
       - aiq-vlm-nim
     environment:
       AIQ_EMBED_MODEL: ${AIQ_EMBED_MODEL}
@@ -156,8 +141,14 @@ echo "$NGC_API_KEY" | docker login nvcr.io --username '$oauthtoken' --password-s
 cd deploy/compose
 docker compose --env-file ../.env \
   -f docker-compose.yaml \
-  -f docker-compose.ingestion-local-nims.yaml \
+  -f docker-compose.ingestion-local-vlm.yaml \
   up -d --build
+```
+
+If old local embedding or local LLM containers are still present from earlier testing, stop them:
+
+```bash
+docker stop aiq-embed-nim aiq-llm-nim 2>/dev/null || true
 ```
 
 First startup can take several minutes while model artifacts download and profiles initialize.
@@ -167,20 +158,20 @@ First startup can take several minutes while model artifacts download and profil
 From the host:
 
 ```bash
-curl http://localhost:8002/v1/health/ready
 curl http://localhost:8001/v1/health/ready
 curl http://localhost:8000/v1/knowledge/health
 ```
 
-Embedding test:
+Hosted embedding test:
 
 ```bash
-curl -X POST http://localhost:8002/v1/embeddings \
+curl -X POST https://integrate.api.nvidia.com/v1/embeddings \
+  -H "Authorization: Bearer $NVIDIA_API_KEY" \
   -H 'Content-Type: application/json' \
   -d '{"input":["hello"],"model":"nvidia/llama-nemotron-embed-vl-1b-v2","input_type":"query","modality":"text"}'
 ```
 
-There is no local LLM smoke test in this benchmark setup.
+There is no local embedding or local LLM smoke test in this benchmark setup.
 
 ## 8. Run Ingestion Benchmark
 
@@ -198,6 +189,7 @@ Run the same commands on B300 with labels such as `b300-small-run1`.
 
 - Re-ingest documents after changing embedding models or embedding endpoints.
 - The VLM NIM is used during ingestion for image/chart extraction, not for every query.
-- If AI-Q cannot reach local NIMs from inside Docker, check that base URLs use service names such as `http://aiq-embed-nim:8000/v1`, not `localhost`.
+- If AI-Q cannot reach the local VLM from inside Docker, check that `AIQ_VLM_BASE_URL` uses the service name `http://aiq-vlm-nim:8000/v1`, not `localhost`.
+- Hosted embedding latency is now part of the benchmark. Use repeated runs and compare medians so transient network/API variance does not dominate the result.
 - If you keep `generate_summary: false`, hosted LLM latency should not be part of the ingestion benchmark.
 - If you later benchmark full query/research workflows, label that separately because it exercises hosted LLM calls and is not a pure ingestion benchmark.

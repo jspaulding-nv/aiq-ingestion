@@ -5,11 +5,11 @@ This benchmark compares AI-Q 2.1.0 document ingestion using the LlamaIndex knowl
 - `AIQ_EXTRACT_IMAGES=true`
 - `AIQ_EXTRACT_CHARTS=true`
 - local VLM NIM: `nvidia/nemotron-nano-12b-v2-vl`
-- local embedding NIM: `nvidia/llama-nemotron-embed-vl-1b-v2`
+- hosted embeddings: `nvidia/llama-nemotron-embed-vl-1b-v2`
 - hosted LLMs from the default AI-Q config
 - `generate_summary: false`
 
-The goal is to isolate GPU work that matters for ingestion: image/chart extraction through the VLM, embedding generation, and vector-store writes. The LLM is not hosted locally for this benchmark because it competes for VRAM and can obscure the B200 vs B300 ingestion comparison.
+The goal is to compare AI-Q ingestion with image/chart extraction through a local VLM on each GPU. Embeddings and LLMs are hosted so the benchmark avoids local LLM VRAM contention and the current local embedding NIM failure observed on B300 (`CUDA_ERROR_NO_BINARY_FOR_GPU` when loading kernels for `sm_103a`).
 
 The Knowledge API upload path is asynchronous:
 
@@ -47,28 +47,27 @@ Keep each pack's `manifest.json` and `manifest.csv` with benchmark results.
 
 ## Local NIMs
 
-Only two local NIMs should be running:
+Only one local NIM should be running:
 
 ```text
-aiq-embed-nim  localhost:8002
-aiq-vlm-nim    localhost:8001
+aiq-vlm-nim  localhost:8001
 ```
 
-Do not run `aiq-llm-nim` for the ingestion benchmark.
+Do not run `aiq-embed-nim` or `aiq-llm-nim` for the ingestion benchmark.
 
 Warm and verify before each measured run:
 
 ```bash
 curl http://localhost:8000/health
-curl http://localhost:8002/v1/health/ready
 curl http://localhost:8001/v1/health/ready
 
-curl -X POST http://localhost:8002/v1/embeddings \
+curl -X POST https://integrate.api.nvidia.com/v1/embeddings \
+  -H "Authorization: Bearer $NVIDIA_API_KEY" \
   -H 'Content-Type: application/json' \
   -d '{"input":["warmup"],"model":"nvidia/llama-nemotron-embed-vl-1b-v2","input_type":"query","modality":"text"}'
 ```
 
-Use `nvidia-smi` to confirm the local LLM is not consuming VRAM:
+Use `nvidia-smi` to confirm only the local VLM is consuming benchmark GPU memory:
 
 ```bash
 docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
@@ -97,7 +96,7 @@ In `deploy/.env`:
 BACKEND_CONFIG=/app/configs/config_web_ingestion_benchmark_llamaindex.yml
 
 AIQ_EMBED_MODEL=nvidia/llama-nemotron-embed-vl-1b-v2
-AIQ_EMBED_BASE_URL=http://aiq-embed-nim:8000/v1
+AIQ_EMBED_BASE_URL=https://integrate.api.nvidia.com/v1
 
 AIQ_EXTRACT_IMAGES=true
 AIQ_EXTRACT_CHARTS=true
@@ -105,7 +104,7 @@ AIQ_VLM_MODEL=nvidia/nemotron-nano-12b-v2-vl
 AIQ_VLM_BASE_URL=http://aiq-vlm-nim:8000/v1
 ```
 
-The hosted LLMs remain in the default `llms:` block. Since summaries are disabled, hosted LLM latency should not materially affect ingestion timing.
+The hosted LLMs remain in the default `llms:` block. Since summaries are disabled, hosted LLM latency should not materially affect ingestion timing. Hosted embedding latency is part of the benchmark, so compare medians across repeated runs and avoid mixing local and hosted embedding modes between B200 and B300.
 
 ## Run The Benchmark
 
@@ -200,10 +199,9 @@ If GPU utilization is low while ingest time is high, look at:
 - whether ingestion is serializing files/images
 - ChromaDB write latency
 
-If B200 runs out of memory, stop any local LLM container and keep only:
+If B200 runs out of memory, stop any local embedding or local LLM containers and keep only:
 
 ```text
-aiq-embed-nim
 aiq-vlm-nim
 ```
 
@@ -212,5 +210,6 @@ aiq-vlm-nim
 - Always use a fresh collection per run. The benchmark script does this automatically.
 - Reusing an existing collection can hide work due to duplicate handling or cached state.
 - Leave NIM model caches warm. You are benchmarking ingestion, not model download.
-- Keep the same NIM image tags across B200 and B300.
-- Keep `AIQ_EMBED_BASE_URL` and `AIQ_VLM_BASE_URL` pointed at local Docker service names inside AI-Q, not `localhost`.
+- Keep the same VLM NIM image tag across B200 and B300.
+- Keep `AIQ_VLM_BASE_URL` pointed at the local Docker service name inside AI-Q, not `localhost`.
+- Keep `AIQ_EMBED_BASE_URL` pointed at the same hosted endpoint on both systems.
