@@ -14,7 +14,7 @@ This is the recommended setup for B200 vs B300 ingestion benchmarking. It keeps 
 - AI-Q 2.1.0 full pipeline LlamaIndex example: https://docs.nvidia.com/aiq-blueprint/2.1.0/examples/full-pipeline-llamaindex.html
 - AI-Q 2.1.0 Docker Compose deployment: https://docs.nvidia.com/aiq-blueprint/2.1.0/deployment/docker-compose.html
 - AI-Q 2.1.0 knowledge layer multimodal variables: https://docs.nvidia.com/aiq-blueprint/2.1.0/customization/knowledge-layer.html
-- NeMo Retriever embedding NIM getting started: https://docs.nvidia.com/nim/nemo-retriever/text-embedding/1.12.0/getting-started.html
+- NeMo Retriever embedding NIM support matrix: https://docs.nvidia.com/nim/nemo-retriever/text-embedding/2.0.0/support-matrix.html
 - VLM NIM support matrix for Nemotron Nano 12B v2 VL: https://docs.nvidia.com/nim/vision-language-models/1.6.0/support-matrix.html
 
 ## 1. Host Prerequisites
@@ -107,7 +107,7 @@ Create `deploy/compose/docker-compose.ingestion-local-nims.yaml`:
 ```yaml
 services:
   aiq-embed-nim:
-    image: nvcr.io/nim/nvidia/llama-nemotron-embed-vl-1b-v2:1.12.0
+    image: nvcr.io/nim/nvidia/llama-nemotron-embed-vl-1b-v2:2.0.0
     container_name: aiq-embed-nim
     gpus: all
     ipc: host
