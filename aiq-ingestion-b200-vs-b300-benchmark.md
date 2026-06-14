@@ -46,6 +46,34 @@ Suggested tiers:
 
 Keep each pack's `manifest.json` and `manifest.csv` with benchmark results.
 
+To reproduce the exact B300-captured files on B200, do not re-run discovery. Copy the B300 manifests to the B200 clone, then restore each pack from those manifests:
+
+```bash
+cd ~/aiq-ingestion
+
+python3 restore_pdf_pack_from_manifest.py aiq-ingestion-manifests/small-pack/manifest.json \
+  --outdir datasets/small-pack
+
+python3 restore_pdf_pack_from_manifest.py aiq-ingestion-manifests/medium-pack/manifest.json \
+  --outdir datasets/medium-pack
+
+python3 restore_pdf_pack_from_manifest.py aiq-ingestion-manifests/stress-pack/manifest.json \
+  --outdir datasets/stress-pack
+```
+
+Before running the benchmark, verify the restored files against the manifests:
+
+```bash
+python3 restore_pdf_pack_from_manifest.py aiq-ingestion-manifests/small-pack/manifest.json \
+  --outdir datasets/small-pack --verify-only
+
+python3 restore_pdf_pack_from_manifest.py aiq-ingestion-manifests/medium-pack/manifest.json \
+  --outdir datasets/medium-pack --verify-only
+
+python3 restore_pdf_pack_from_manifest.py aiq-ingestion-manifests/stress-pack/manifest.json \
+  --outdir datasets/stress-pack --verify-only
+```
+
 ## Local NIMs
 
 Only one local NIM should be running:
