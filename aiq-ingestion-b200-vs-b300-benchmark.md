@@ -134,6 +134,10 @@ In `deploy/.env`:
 
 ```bash
 BACKEND_CONFIG=/app/configs/config_web_ingestion_benchmark_llamaindex.yml
+LOCAL_NIM_CACHE=/localhome/local-jspaulding/.cache/nim-b300-aiq
+HOST_UID=1000
+HOST_GID=1000
+NIM_KVCACHE_PERCENT=0.75
 
 # Embedding mode: local_hf
 AIQ_EMBED_MODEL=nvidia/llama-nemotron-embed-vl-1b-v2
@@ -150,12 +154,21 @@ AIQ_VLM_MODEL=nvidia/nemotron-nano-12b-v2-vl
 AIQ_VLM_BASE_URL=http://aiq-vlm-nim:8000/v1
 ```
 
+Use `id -u` and `id -g` for the real `HOST_UID` and `HOST_GID` values. Create `LOCAL_NIM_CACHE` as a fresh path your user owns, then verify that `$LOCAL_NIM_CACHE/vlm/local_cache` is writable before starting compose.
+
 The hosted LLMs remain in the default `llms:` block. Since summaries are disabled, hosted LLM latency should not materially affect ingestion timing. Embedding latency is part of the benchmark, so compare medians across repeated runs and avoid mixing local and hosted embedding modes between B200 and B300.
 
-For local HF embeddings, the compose override must let `aiq-agent` reach the host-side embedding service:
+The compose override should run the VLM NIM as your host user and let `aiq-agent` reach the host-side embedding service:
 
 ```yaml
 services:
+  aiq-vlm-nim:
+    user: "${HOST_UID}:${HOST_GID}"
+    environment:
+      NIM_KVCACHE_PERCENT: ${NIM_KVCACHE_PERCENT:-0.75}
+    volumes:
+      - ${LOCAL_NIM_CACHE}:/opt/nim/.cache
+
   aiq-agent:
     extra_hosts:
       - "host.docker.internal:host-gateway"

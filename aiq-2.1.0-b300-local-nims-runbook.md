@@ -45,14 +45,26 @@ cp deploy/.env.example deploy/.env
 
 ## 3. Edit `deploy/.env`
 
-Use your real keys and local cache path. On the hosted GPU machines used in this benchmark, `/localhome/local-jspaulding/.cache/nim` is the right pattern.
+Use your real keys and a fresh local cache path that your user owns. Avoid reusing an existing shared or root-owned NIM cache; if the mounted cache is not writable by the NIM process, the VLM container exits with `PermissionError: /opt/nim/.cache/local_cache`.
+
+To get the correct host-specific values:
+
+```bash
+echo "LOCAL_NIM_CACHE=$HOME/.cache/nim-b300-aiq"
+echo "HOST_UID=$(id -u)"
+echo "HOST_GID=$(id -g)"
+```
 
 ```bash
 NVIDIA_API_KEY=nvapi-...
 NGC_API_KEY=nvapi-...
 TAVILY_API_KEY=tvly-...
 
-LOCAL_NIM_CACHE=/localhome/local-jspaulding/.cache/nim
+LOCAL_NIM_CACHE=/localhome/local-jspaulding/.cache/nim-b300-aiq
+HOST_UID=1000
+HOST_GID=1000
+NIM_KVCACHE_PERCENT=0.75
+
 BACKEND_CONFIG=/app/configs/config_web_ingestion_benchmark_llamaindex.yml
 AIQ_CHROMA_DIR=/app/data/chroma_data
 
@@ -75,24 +87,36 @@ AIQ_CHECKPOINT_DB=postgresql://aiq:aiq_dev@postgres:5432/aiq_checkpoints
 AIQ_SUMMARY_DB=postgresql+psycopg://aiq:aiq_dev@postgres:5432/aiq_jobs
 ```
 
-Create the local NIM cache directory for the VLM:
-
-```bash
-sudo mkdir -p /localhome/local-jspaulding/.cache/nim/vlm
-sudo chmod -R 777 /localhome/local-jspaulding/.cache/nim
-```
-
-If VLM readiness fails with `/opt/nim/.cache is read-only` or `PermissionError: /opt/nim/.cache/local_cache`, repair the mounted cache and recreate the affected services:
+Create and verify the local NIM cache directory before starting compose:
 
 ```bash
 cd ~/aiq
 
 CACHE="$(awk -F= '/^LOCAL_NIM_CACHE=/{print $2}' deploy/.env | tail -1)"
+test -n "$CACHE" || { echo "LOCAL_NIM_CACHE is not set in deploy/.env"; exit 1; }
 
-sudo mkdir -p "$CACHE/vlm"
-sudo chmod -R 777 "$CACHE"
+case "$CACHE" in
+  *'$'*|~*) echo "Use an absolute expanded path for LOCAL_NIM_CACHE, not $CACHE"; exit 1 ;;
+esac
 
+mkdir -p "$CACHE/vlm/local_cache"
+chmod -R ugo+rwx "$CACHE"
+
+touch "$CACHE/vlm/local_cache/write-test" && rm "$CACHE/vlm/local_cache/write-test"
+ls -ld "$CACHE" "$CACHE/vlm" "$CACHE/vlm/local_cache"
+```
+
+Do not continue until the `touch` command succeeds. If it fails, change `LOCAL_NIM_CACHE` in `deploy/.env` to a new path under your home directory, then rerun the preflight.
+
+If you already started compose and VLM readiness failed with `/opt/nim/.cache is read-only` or `PermissionError: /opt/nim/.cache/local_cache`, stop the failed service, rerun the cache preflight above, then recreate the affected services:
+
+```bash
 cd ~/aiq/deploy/compose
+
+docker compose --env-file ../.env \
+  -f docker-compose.yaml \
+  -f docker-compose.ingestion-local-vlm.yaml \
+  rm -sf aiq-vlm-nim
 
 docker rm -f aiq-vlm-nim 2>/dev/null || true
 
@@ -130,11 +154,13 @@ services:
     image: nvcr.io/nim/nvidia/nemotron-nano-12b-v2-vl:1.6.0
     container_name: aiq-vlm-nim
     gpus: all
+    user: "${HOST_UID}:${HOST_GID}"
     ipc: host
     shm_size: "32gb"
     environment:
       NGC_API_KEY: ${NGC_API_KEY}
       MPLCONFIGDIR: /tmp/matplotlib
+      NIM_KVCACHE_PERCENT: ${NIM_KVCACHE_PERCENT:-0.75}
     volumes:
       - ${LOCAL_NIM_CACHE}:/opt/nim/.cache
     ports:
