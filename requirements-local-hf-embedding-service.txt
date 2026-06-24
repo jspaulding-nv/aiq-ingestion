@@ -1,0 +1,13 @@
+# Install the B300-compatible PyTorch wheel separately before this file.
+accelerate
+einops
+fastapi
+huggingface_hub
+pillow
+requests
+safetensors
+sentence-transformers
+timm
+transformers>=4.56.0
+uvicorn[standard]
+

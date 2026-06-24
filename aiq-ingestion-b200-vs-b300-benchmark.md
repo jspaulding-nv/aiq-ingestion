@@ -6,11 +6,13 @@ This benchmark compares AI-Q 2.1.0 document ingestion using the LlamaIndex knowl
 - `AIQ_EXTRACT_CHARTS=true`
 - `AIQ_EXTRACT_TABLES=true`
 - local VLM NIM: `nvidia/nemotron-nano-12b-v2-vl`
-- hosted embeddings: `nvidia/llama-nemotron-embed-vl-1b-v2`
+- embeddings, choose one:
+  - local HF/PyTorch: `nvidia/llama-nemotron-embed-vl-1b-v2`
+  - hosted NVIDIA endpoint: `nvidia/llama-nemotron-embed-vl-1b-v2`
 - hosted LLMs from the default AI-Q config
 - `generate_summary: false`
 
-The goal is to compare AI-Q ingestion with image/chart extraction through a local VLM on each GPU. Embeddings and LLMs are hosted so the benchmark avoids local LLM VRAM contention and the current local embedding NIM failure observed on B300 (`CUDA_ERROR_NO_BINARY_FOR_GPU` when loading kernels for `sm_103a`).
+The goal is to compare AI-Q ingestion with image/chart extraction through a local VLM on each GPU. The local embedding NIM failed on B300 (`CUDA_ERROR_NO_BINARY_FOR_GPU` when loading kernels for `sm_103a`), but the same model works through Hugging Face/PyTorch with BF16 + SDPA, so embeddings can run locally through the small FastAPI service in this repo. Hosted NVIDIA embeddings remain a valid option when you want a simpler setup or want to avoid local embedding GPU contention. Hosted LLMs remain in the default config, and `generate_summary: false` keeps LLM latency out of ingestion timing.
 
 The Knowledge API upload path is asynchronous:
 
@@ -74,12 +76,13 @@ python3 restore_pdf_pack_from_manifest.py aiq-ingestion-manifests/stress-pack/ma
   --outdir datasets/stress-pack --verify-only
 ```
 
-## Local NIMs
+## Local Services
 
-Only one local NIM should be running:
+Only one local NIM should be running. If using local HF embeddings, also run the host-side embedding service:
 
 ```text
 aiq-vlm-nim  localhost:8001
+local HF embedding service  localhost:8010  # local_hf embedding mode only
 ```
 
 Do not run `aiq-embed-nim` or `aiq-llm-nim` for the ingestion benchmark.
@@ -90,13 +93,21 @@ Warm and verify before each measured run:
 curl http://localhost:8000/health
 curl http://localhost:8001/v1/health/ready
 
+curl -X POST http://localhost:8010/v1/embeddings \
+  -H 'Content-Type: application/json' \
+  -d '{"input":["warmup"],"model":"nvidia/llama-nemotron-embed-vl-1b-v2","input_type":"query","modality":"text"}'
+```
+
+For hosted embeddings, warm and verify the hosted endpoint instead:
+
+```bash
 curl -X POST https://integrate.api.nvidia.com/v1/embeddings \
   -H "Authorization: Bearer $NVIDIA_API_KEY" \
   -H 'Content-Type: application/json' \
   -d '{"input":["warmup"],"model":"nvidia/llama-nemotron-embed-vl-1b-v2","input_type":"query","modality":"text"}'
 ```
 
-Use `nvidia-smi` to confirm only the local VLM is consuming benchmark GPU memory:
+Use `nvidia-smi` to confirm the expected local services are consuming benchmark GPU memory:
 
 ```bash
 docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
@@ -124,8 +135,13 @@ In `deploy/.env`:
 ```bash
 BACKEND_CONFIG=/app/configs/config_web_ingestion_benchmark_llamaindex.yml
 
+# Embedding mode: local_hf
 AIQ_EMBED_MODEL=nvidia/llama-nemotron-embed-vl-1b-v2
-AIQ_EMBED_BASE_URL=https://integrate.api.nvidia.com/v1
+AIQ_EMBED_BASE_URL=http://host.docker.internal:8010/v1
+
+# Embedding mode: hosted_nvidia
+# AIQ_EMBED_MODEL=nvidia/llama-nemotron-embed-vl-1b-v2
+# AIQ_EMBED_BASE_URL=https://integrate.api.nvidia.com/v1
 
 AIQ_EXTRACT_TABLES=true
 AIQ_EXTRACT_IMAGES=true
@@ -134,7 +150,39 @@ AIQ_VLM_MODEL=nvidia/nemotron-nano-12b-v2-vl
 AIQ_VLM_BASE_URL=http://aiq-vlm-nim:8000/v1
 ```
 
-The hosted LLMs remain in the default `llms:` block. Since summaries are disabled, hosted LLM latency should not materially affect ingestion timing. Hosted embedding latency is part of the benchmark, so compare medians across repeated runs and avoid mixing local and hosted embedding modes between B200 and B300.
+The hosted LLMs remain in the default `llms:` block. Since summaries are disabled, hosted LLM latency should not materially affect ingestion timing. Embedding latency is part of the benchmark, so compare medians across repeated runs and avoid mixing local and hosted embedding modes between B200 and B300.
+
+For local HF embeddings, the compose override must let `aiq-agent` reach the host-side embedding service:
+
+```yaml
+services:
+  aiq-agent:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+```
+
+For local HF embeddings, start the embedding service before ingestion:
+
+```bash
+cd ~/aiq-ingestion
+source ~/venvs/nemotron-embed-vl-b300/bin/activate
+
+python -m pip install -r requirements-local-hf-embedding-service.txt
+
+export HF_EMBED_REVISION=0c6f636ed4c022e427277c4c336054d6cdffaa87
+export HF_EMBED_ATTN=sdpa
+export HF_EMBED_DTYPE=bfloat16
+export CUDA_MODULE_LOADING=LAZY
+
+python -m uvicorn local_hf_embedding_service:app --host 0.0.0.0 --port 8010 --workers 1
+```
+
+For hosted embeddings, do not start the local embedding service. Use:
+
+```bash
+AIQ_EMBED_MODEL=nvidia/llama-nemotron-embed-vl-1b-v2
+AIQ_EMBED_BASE_URL=https://integrate.api.nvidia.com/v1
+```
 
 ## Run The Benchmark
 
@@ -208,10 +256,10 @@ The CSV includes `nvidia-smi` samples:
 Watch the backend logs during medium and stress runs:
 
 ```bash
-docker logs -f aiq-agent | egrep -i '429|rate|limit|retry|embedding|integrate.api'
+docker logs -f aiq-agent | egrep -i '429|rate|limit|retry|embedding|integrate.api|8010|host.docker.internal|connection|timeout|error'
 ```
 
-If the hosted embedding endpoint throttles requests, label that run as hosted-embedding/API-limited. The small pack is the safest tier for avoiding the public API's 40 RPM limit.
+If the local embedding service is not reachable from Docker, or the hosted endpoint is rate-limiting, fix or label that before collecting a benchmark result.
 
 ## What To Report
 
@@ -220,7 +268,7 @@ For each hardware/tier, report the median of three runs:
 ```text
 hardware, tier, summaries_enabled, files, total_mb, total_pages, total_visuals,
 median_total_seconds, median_docs_per_minute, median_mb_per_minute,
-peak_vram_mb, mean_gpu_util_pct, peak_power_w
+embedding_mode, peak_vram_mb, mean_gpu_util_pct, peak_power_w
 ```
 
 Use:
@@ -256,5 +304,6 @@ aiq-vlm-nim
 - Leave NIM model caches warm. You are benchmarking ingestion, not model download.
 - Keep the same VLM NIM image tag across B200 and B300.
 - Keep `AIQ_VLM_BASE_URL` pointed at the local Docker service name inside AI-Q, not `localhost`.
-- Keep `AIQ_EMBED_BASE_URL` pointed at the same hosted endpoint on both systems.
-- Mark runs as hosted-embedding/API-limited if NVIDIA public endpoint rate limits affect ingestion.
+- Keep `AIQ_EMBED_BASE_URL` pointed at the same kind of endpoint on both systems, either local HF/PyTorch on both hosts or hosted on both hosts.
+- Label hosted embedding runs as `embedding_mode=hosted_nvidia`.
+- Label local HF/PyTorch embedding runs as `embedding_mode=local_hf`.
